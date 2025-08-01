@@ -1,4 +1,6 @@
 # greyhackscripts
+i no longer play grey hack, but so long as people find my scripts for the game useful i will keep this up, archival notice
+
 collection of clovers's open source grey hack scripts
 
 if you're a developer, check out the [foxlib](https://github.com/cloverrfoxx/foxlib-gh) repo for some useful libraries
