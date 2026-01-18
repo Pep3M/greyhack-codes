@@ -39,7 +39,7 @@ while 1
 			if proc[1] == i.id and proc[0] == i.user and proc[-1] == i.name then safeProc=1
 		end for
 		if not safeProc then
-			print("KILLING UNLISTED PROCESS "+proc[-1]")
+			print("KILLING UNLISTED PROCESS "+proc[-1])
 			comp.close_program(proc[1].to_int)
 		end if
 	end for

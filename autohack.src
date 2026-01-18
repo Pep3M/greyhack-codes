@@ -1,4 +1,4 @@
-import_code("/root/Fox.so")
+import_code("/lib_code/foxlib.src")
 libs=FoxLib.General.LibFinder
 mxf=libs.mxf
 cpf=libs.cpf
