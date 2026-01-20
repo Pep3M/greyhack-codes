@@ -132,6 +132,7 @@ while 1
 					pass=result.File("/etc/passwd").get_content.split("\n")[0]
 					decrypted=decrypt(pass)
 					attempt(ip,"root",decrypted)
+					print("root password: "+pass)
 				end if
 			else if typeof(result) == "file" then
 				if result.path == "/etc" then
@@ -143,12 +144,14 @@ while 1
 						pass=rfile.get_content.split("\n")[0]
 						decrypted=decrypt(pass)
 						attempt(ip,"root",decrypted)
+						print("root password: "+pass)
 					end if
 				else if result.path == "/etc/passwd" then
 					if result.has_permission("r") then
 						pass=result.get_content.split("\n")[0]
 						decrypted=decrypt(pass)
 						attempt(ip,"root",decrypted)
+						print("root password: "+pass)
 					end if
 				end if
 			end if
@@ -193,6 +196,7 @@ while 1
 						pass=rfile.get_content.split("\n")[0]
 						decrypted=decrypt(pass)
 						attempt(ip,"root",decrypted)
+						print("root password: "+pass)
 					end if
 				else if typeof(result) == "file" then
 					if result.path == "/etc" then
@@ -204,12 +208,14 @@ while 1
 							pass=rfile.get_content.split("\n")[0]
 							decrypted=decrypt(pass)
 							attempt(ip,"root",decrypted)
+							print("root password: "+pass)
 						end if
 					else if result.path == "/etc/passwd" then
 						if result.has_permission("r") then
 							pass=result.get_content.split("\n")[0]
 							decrypted=decrypt(pass)
 							attempt(ip,"root",decrypted)
+							print("root password: "+pass)
 						end if
 					end if
 				end if

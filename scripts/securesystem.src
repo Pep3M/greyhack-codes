@@ -1,0 +1,221 @@
+// System security script - Restrict permissions for guest users
+// Recursively reviews the entire system and applies permission restrictions
+
+if params.len > 0 and (params[0] == "-h" or params[0] == "--help") then
+    exit("<b>Usage: " + program_path.split("/")[-1] + " [--dry-run]</b>" + char(10) + 
+         "<b>--dry-run:</b> Only shows changes without applying them")
+end if
+
+dryRun = false
+if params.len > 0 and params[0] == "--dry-run" then
+    dryRun = true
+    print("<color=#ffff00>Dry-run mode activated - Changes will not be applied</color>")
+end if
+
+// Verify that we have root permissions
+comp = get_shell.host_computer
+root = comp.File("/")
+if not root or not root.has_permission("w") then
+    exit("Error: Root permissions required to run this script")
+end if
+
+// Define critical/sensitive areas - only owner has access
+criticalPaths = ["/etc/passwd", "/etc/shadow", "/etc/group", "/etc", "/root", "/boot", "/sbin", "/usr/sbin", "/var/log"]
+
+// Areas where authenticated users (group) need rwx permissions - /bin, /lib, /usr/bin
+groupExecutablePaths = ["/bin", "/lib", "/usr/bin"]
+
+// Allowed area for guest - only /home/guest and its contents
+guestAllowedPath = "/home/guest"
+
+// Directories that should not be processed (virtual filesystems, special mount points)
+excludedPaths = ["/proc", "/sys", "/dev"]
+
+// Function to check if a path is critical (owner only)
+isCriticalPath = function(path)
+    for criticalPath in globals.criticalPaths
+        if path.indexOf(criticalPath) == 0 then return true
+    end for
+    return false
+end function
+
+// Function to check if a path allows group rwx (authenticated users)
+isGroupExecutablePath = function(path)
+    for groupPath in globals.groupExecutablePaths
+        if path.indexOf(groupPath) == 0 then return true
+    end for
+    return false
+end function
+
+// Function to check if a path is allowed for guest
+isGuestAllowedPath = function(path)
+    if path.indexOf(globals.guestAllowedPath) == 0 then return true
+    return false
+end function
+
+// Function to check if a path should be excluded from processing
+isExcludedPath = function(path)
+    for excludedPath in globals.excludedPaths
+        if path.indexOf(excludedPath) == 0 then return true
+    end for
+    return false
+end function
+
+// Counters
+stats = {}
+stats.total = 0
+stats.restricted = 0
+stats.critical = 0
+stats.groupExecutable = 0
+stats.guestAllowed = 0
+stats.errors = 0
+
+// Function to apply permission restrictions according to least privilege principle
+applyRestrictions = function(file, path)
+    globals.stats.total = globals.stats.total + 1
+    
+    // Verify if we have permissions to modify
+    if not file.has_permission("w") then
+        print("<color=#ff0000>[-] No permissions: " + path + "</color>")
+        globals.stats.errors = globals.stats.errors + 1
+        return false
+    end if
+    
+    // Determine path type - check group executable first (more specific)
+    isGroupExecutable = isGroupExecutablePath(path)
+    isCritical = isCriticalPath(path)
+    isGuestAllowed = isGuestAllowedPath(path)
+    
+    // Apply restrictions according to least privilege principle
+    restrictions = []
+    msg = ""
+    
+    if isGroupExecutable then
+        // Areas where authenticated users (group) need rwx: /bin, /lib, /usr/bin
+        // Ensure group has rwx permissions, remove all permissions from guest
+        restrictions.push("g+rwx")  // Add read, write, execute for group
+        restrictions.push("o-wrx")  // No permissions for others (guest)
+        globals.stats.groupExecutable = globals.stats.groupExecutable + 1
+        msg = "<color=#00aaff>[GROUP EXECUTABLE]</color>"
+    else if isCritical then
+        // Critical areas: ONLY owner has access
+        // Remove all permissions from group and others
+        restrictions.push("g-wrx")  // No permissions for group
+        restrictions.push("o-wrx")  // No permissions for others (guest)
+        globals.stats.critical = globals.stats.critical + 1
+        msg = "<color=#ff0000>[CRITICAL]</color>"
+    else if isGuestAllowed then
+        // /home/guest: guest can have access (read, write, execute as appropriate)
+        // We don't apply restrictions here, maintain existing permissions
+        globals.stats.guestAllowed = globals.stats.guestAllowed + 1
+        msg = "<color=#00ff00>[GUEST ALLOWED]</color>"
+        // Only count but don't apply changes
+    else
+        // Normal areas: guest without access, group maintains appropriate permissions
+        // Remove all permissions from guest (others)
+        restrictions.push("o-wrx")  // No permissions for others (guest)
+        msg = "<color=#ffff00>[NORMAL]</color>"
+    end if
+    
+    // Apply restrictions if any
+    if restrictions.len > 0 then
+        if globals.dryRun then
+            print(msg + " <color=#888888>[DRY-RUN]</color> " + restrictions.join(", ") + " -> " + path)
+            globals.stats.restricted = globals.stats.restricted + 1
+        else
+            // Apply each restriction individually
+            for restriction in restrictions
+                file.chmod(restriction, 0)
+            end for
+            globals.stats.restricted = globals.stats.restricted + 1
+            // Show message for critical/group executable areas or every 100 files to avoid flooding
+            // Always show for group executable and critical areas for debugging
+            if isGroupExecutable or isCritical or globals.stats.restricted % 100 == 0 then
+                print(msg + " Restrictions applied: " + path)
+            end if
+        end if
+    end if
+    
+    return true
+end function
+
+// Recursive function to process files and directories
+// processedPaths is initialized before processing
+processPath = function(file, path)
+    if not file then return
+    
+    // Avoid processing excluded paths
+    if isExcludedPath(path) then return
+    
+    // Avoid processing the same file multiple times (symbolic links)
+    if globals.processedPaths.hasIndex(path) then return
+    globals.processedPaths[path] = true
+    
+    // Process current file/directory
+    applyRestrictions(file, path)
+    
+    // If it's a directory, process its contents
+    if file.is_folder then
+        folders = file.get_folders
+        files = file.get_files
+        
+        // Process subdirectories
+        if folders then
+            for folder in folders
+                // Avoid infinite loops
+                if folder.path == path then continue
+                if folder.path.indexOf("/") != 0 then continue  // Ignore unusual relative paths
+                processPath(folder, folder.path)
+            end for
+        end if
+        
+        // Process files
+        if files then
+            for f in files
+                if f.path.indexOf("/") != 0 then continue  // Ignore unusual relative paths
+                processPath(f, f.path)
+            end for
+        end if
+    end if
+end function
+
+// Show initial information
+print("<color=#00ffff>=== System Security Script ===</color>")
+print("Applying least privilege principle...")
+print("Critical areas (owner only): " + criticalPaths.len)
+print("Group executable areas (authenticated users rwx): " + groupExecutablePaths.len)
+print("Allowed area for guest: " + guestAllowedPath)
+print("")
+
+// Initialize processed paths map
+processedPaths = {}
+
+// Process from root
+startTime = time
+processPath(root, "/")
+
+// Show summary
+endTime = time
+duration = endTime - startTime
+
+print("")
+print("<color=#00ffff>=== Review Summary ===</color>")
+print("Total elements reviewed: " + stats.total)
+print("Restricted elements: " + stats.restricted)
+print("Critical areas processed: " + stats.critical)
+print("Group executable areas processed: " + stats.groupExecutable)
+print("Guest allowed areas: " + stats.guestAllowed)
+print("Errors found: " + stats.errors)
+print("Execution time: " + duration + " seconds")
+
+if dryRun then
+    print("")
+    print("<color=#ffff00>Dry-run mode: No real changes were applied</color>")
+    print("Run without --dry-run to apply restrictions")
+else
+    print("")
+    print("<color=#00ff00>✓ Restrictions applied successfully</color>")
+end if
+
+print("")
+print("<color=#00ffff>Review completed</color>")
