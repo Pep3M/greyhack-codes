@@ -1,3 +1,4 @@
+comp = get_shell.host_computer
 root=comp.File("/")
 safeFiles=[]
 newFile={}
