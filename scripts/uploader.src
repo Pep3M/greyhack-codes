@@ -1,0 +1,95 @@
+// File Uploader Script
+// Usage: uploader <ip> <port> <user> <password>
+// Uploads predefined files to a remote computer
+
+// Get parameters
+if params.len < 4 then
+	exit("Usage: uploader <ip> <port> <user> <password>")
+end if
+
+ip = params[0]
+port = params[1].to_int
+user = params[2]
+pass = params[3]
+
+// Files to upload (local path = remote path)
+filesToUpload = ["/bin/nmap", "/bin/tempered", "/bin/remover", "/bin/uploader", "/lib/crypto.so", "/lib/metaxploit.so", "/usr/bin/ScanLan.exe"]
+
+// Get local computer
+localComp = get_shell.host_computer
+
+// Verify local files exist
+print("<color=#FFA500>[*] Verifying local files...</color>")
+missingFiles = []
+for filePath in filesToUpload
+	localFile = localComp.File(filePath)
+	if not localFile then
+		missingFiles.push(filePath)
+		print("<color=#FF0000>[!] Missing: " + filePath + "</color>")
+	else
+		print("<color=#00FF00>[+] Found: " + filePath + "</color>")
+	end if
+end for
+
+if missingFiles.len > 0 then
+	exit("<color=#FF0000>[!] Error: " + missingFiles.len + " file(s) missing locally. Aborting.</color>")
+end if
+
+// Connect to remote computer
+print("\n<color=#FFA500>[*] Connecting to " + ip + ":" + port + " as " + user + "...</color>")
+remoteShell = get_shell.connect_service(ip, port, user, pass)
+
+if typeof(remoteShell) != "shell" then
+	exit("<color=#FF0000>[!] Failed to connect to remote computer. Check credentials and try again.</color>")
+end if
+
+print("<color=#00FF00>[+] Connected successfully!</color>")
+
+// Upload files
+print("\n<color=#FFA500>[*] Starting file upload...</color>")
+successCount = 0
+failCount = 0
+
+for filePath in filesToUpload
+	// Extract directory from path
+	pathParts = filePath.split("/")
+	fileName = pathParts[-1]
+	destDir = pathParts[:-1].join("/")
+	if destDir == "" then destDir = "/"
+	
+	print("\n<color=#FFFF00>[>] Uploading: " + filePath + "</color>")
+	print("    Destination: " + destDir + "/" + fileName)
+	
+	// Perform the copy
+	result = get_shell.scp(filePath, destDir, remoteShell)
+	
+	if result then
+		// Verify file was copied
+		remoteFile = remoteShell.host_computer.File(filePath)
+		if remoteFile then
+			print("<color=#00FF00>    [+] Upload successful!</color>")
+			successCount = successCount + 1
+		else
+			print("<color=#FF0000>    [!] Upload failed - file not found on remote</color>")
+			failCount = failCount + 1
+		end if
+	else
+		print("<color=#FF0000>    [!] Upload failed - scp returned error</color>")
+		failCount = failCount + 1
+	end if
+end for
+
+// Summary
+print("\n<color=#00FFFF>====================================</color>")
+print("<color=#00FFFF>Upload Summary:</color>")
+print("<color=#00FF00>Successful: " + successCount + "/" + filesToUpload.len + "</color>")
+if failCount > 0 then
+	print("<color=#FF0000>Failed: " + failCount + "/" + filesToUpload.len + "</color>")
+end if
+print("<color=#00FFFF>====================================</color>")
+
+if failCount == 0 then
+	print("<color=#00FF00>[+] All files uploaded successfully!</color>")
+else
+	print("<color=#FFA500>[!] Some files failed to upload. Check permissions on remote.</color>")
+end if

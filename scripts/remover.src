@@ -1,0 +1,82 @@
+// File Remover Script
+// Usage: remover
+// Removes predefined files from the LOCAL computer where this script runs
+
+// Files to remove from local computer
+filesToRemove = ["/bin/nmap", "/bin/tempered", "/bin/remover", "/bin/uploader", "/lib/crypto.so", "/lib/metaxploit.so", "/usr/bin/ScanLan.exe"]
+
+// Get local computer
+localComp = get_shell.host_computer
+
+// Check which files exist locally
+print("<color=#FFA500>[*] Checking files on local computer...</color>")
+existingFiles = []
+notFoundFiles = []
+
+for filePath in filesToRemove
+	localFile = localComp.File(filePath)
+	if localFile then
+		existingFiles.push(filePath)
+		print("<color=#FFFF00>[>] Found: " + filePath + "</color>")
+	else
+		notFoundFiles.push(filePath)
+		print("<color=#808080>[-] Not found: " + filePath + "</color>")
+	end if
+end for
+
+if existingFiles.len == 0 then
+	exit("<color=#FFA500>[!] No files found on local computer. Nothing to remove.</color>")
+end if
+
+// Confirm deletion
+print("\n<color=#FF0000>[!] WARNING: About to delete " + existingFiles.len + " file(s) from LOCAL computer.</color>")
+confirm = user_input("Type 'yes' to confirm deletion: ")
+
+if confirm != "yes" then
+	exit("<color=#FFA500>[*] Deletion cancelled by user.</color>")
+end if
+
+// Delete files
+print("\n<color=#FFA500>[*] Starting file deletion...</color>")
+successCount = 0
+failCount = 0
+
+for filePath in existingFiles
+	print("\n<color=#FFFF00>[>] Deleting: " + filePath + "</color>")
+	
+	localFile = localComp.File(filePath)
+	if localFile then
+		result = localFile.delete
+		
+		// Verify file was deleted
+		checkFile = localComp.File(filePath)
+		if not checkFile then
+			print("<color=#00FF00>    [+] Deleted successfully!</color>")
+			successCount = successCount + 1
+		else
+			print("<color=#FF0000>    [!] Deletion failed - file still exists</color>")
+			failCount = failCount + 1
+		end if
+	else
+		print("<color=#FF0000>    [!] File no longer exists</color>")
+		failCount = failCount + 1
+	end if
+end for
+
+// Summary
+print("\n<color=#00FFFF>====================================</color>")
+print("<color=#00FFFF>Deletion Summary:</color>")
+print("<color=#00FF00>Successful: " + successCount + "/" + existingFiles.len + "</color>")
+if failCount > 0 then
+	print("<color=#FF0000>Failed: " + failCount + "/" + existingFiles.len + "</color>")
+end if
+if notFoundFiles.len > 0 then
+	print("<color=#808080>Not found: " + notFoundFiles.len + "/" + filesToRemove.len + "</color>")
+end if
+print("<color=#00FFFF>====================================</color>")
+
+if failCount == 0 and successCount > 0 then
+	print("<color=#00FF00>[+] All files deleted successfully!</color>")
+else if failCount > 0 then
+	print("<color=#FFA500>[!] Some files failed to delete. Check permissions on local computer.</color>")
+end if
