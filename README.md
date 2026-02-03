@@ -1,12 +1,6 @@
-# greyhackscripts
+# 📚 Documentación
 
-i no longer play grey hack, but so long as people find my scripts for the game useful i will keep this up, archival notice
-
-collection of clovers's open source grey hack scripts
-
-## 📚 Documentación
-
-Esta colección contiene scripts, librerías, herramientas y sistemas operativos completos para Grey Hack. La documentación está organizada por categorías:
+Esta colección contiene scripts, librerías, herramientas y sistemas operativos completos para el juego Grey Hack. La documentación está organizada por categorías:
 
 ### Librerías y Frameworks
 - **[01-librerias.md](docs/01-librerias.md)** - Documentación completa de todas las librerías:
@@ -109,9 +103,9 @@ other projects i recommend!
 - [Finko42's Scripts](https://github.com/Finko42/GreyHack)
 
 ## ⚠️ Notas Importantes
-
-- Este repositorio está en modo **archivo** - el autor ya no juega Grey Hack
+- Este repositorio es un fork de [cloverrfoxx/greyhackscripts](https://github.com/cloverrfoxx/greyhackscripts) que esta archivado.
 - Los scripts están diseñados para uso educativo y legítimo
 - Algunos scripts pueden requerir configuración específica de servidores
 - Lee la documentación de cada script antes de usarlo
 - ⚠️ **Nunca uses contraseñas reales** en archivos de texto plano
+- Estos scripts son solo para el juego Grey Hack, no para la vida real (no funcionan). Los conceptos son muy buenos, te preparan para defender un sistema en la vida real.
